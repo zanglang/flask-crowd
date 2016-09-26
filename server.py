@@ -27,12 +27,22 @@ def authenticate():
         raise Unauthorized  # = 401 unauthorized
 
 
+@app.route("/auth/redirect")
+def authenticate_begin():
+    # initiate login session
+    host = request.headers["Host"]
+    callback = request.headers["X-Callback"]
+    app.logger.info("New login from host: %s callback: %s", host, callback)
+    return redirect(url_for("login", next=callback))
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     # if get, render a login page, else verify
     if request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+        callback = request.form["next"]
         crowd_session = CROWD_SERVER.get_session(username, password)
         if crowd_session:
             # logged in successfully, merge crowd JSON into session
@@ -40,12 +50,12 @@ def login():
             app.logger.debug("User %s <%s> logged in.",
                              session["user"]["display-name"],
                              session["user"]["email"])
-            return redirect(url_for("index"))
+            return redirect(callback or url_for("index"))
         else:
             # failed
             app.logger.info("User %s unauthorized.", username)
             session["error"] = "Username or password incorrect!"
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=callback))
     else:
         # render a login page
         return """
@@ -57,9 +67,11 @@ def login():
             <p>
                 <label for="password">Password</label>
                 <input name="password" type="password"/>
-            <input type="submit" value="Login">
+            <input type="hidden" name="next" value="%s"/>
+            <input type="submit" value="Login"/>
         </form>
-        """ % session.pop("error", "")  # display login errors
+        """ % (session.pop("error", ""),  # display login errors
+               request.args.get("next"))  # where to redirect to
 
 
 @app.route("/logout")
