@@ -94,4 +94,4 @@ if __name__ == '__main__':
     if args.debug:
         app.config.update(DEBUG=True, SESSION_COOKIE_DOMAIN=None)
 
-    app.run(host=args.host, port=args.port)
+    app.run(host=args.host, port=args.port, threaded=True)
