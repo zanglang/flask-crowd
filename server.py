@@ -6,7 +6,7 @@ Authentication microservice for Atlassian Crowd
 
 import crowd
 import argparse
-from flask import Flask, redirect, request, session, url_for
+from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.exceptions import Unauthorized
 
 CROWD_URL = "your crowd URL"
@@ -30,6 +30,7 @@ def authenticate():
         raise Unauthorized  # = 401 unauthorized
 
 
+# Deprecated: define HTTP redirects on the web server directly!
 @app.route("/auth/redirect")
 def authenticate_begin():
     # initiate login session
@@ -54,8 +55,8 @@ def login():
             # logged in successfully, merge crowd JSON into session
             session.update(crowd_session)
             app.logger.debug("User %s <%s> logged in.",
-                             session["user"]["display-name"],
-                             session["user"]["email"])
+                             crowd_session["user"]["display-name"],
+                             crowd_session["user"]["email"])
             return redirect(callback or url_for("index"))
         else:
             # failed
@@ -64,20 +65,9 @@ def login():
             return redirect(url_for("login", next=callback))
     else:
         # render a login page
-        return """
-        <form action="login" method="POST">
-            <div>%s</div>
-            <p>
-                <label for="username">Username</label>
-                <input name="username" type="text"/>
-            <p>
-                <label for="password">Password</label>
-                <input name="password" type="password"/>
-            <input type="hidden" name="next" value="%s"/>
-            <input type="submit" value="Login"/>
-        </form>
-        """ % (session.pop("error", ""),  # display login errors
-               request.args.get("next", ""))  # where to redirect to
+        return render_template("login.html",
+                               error=session.pop("error", ""),
+                               next=request.args.get("next", ""))
 
 
 @app.route("/logout")
@@ -99,4 +89,9 @@ if __name__ == '__main__':
     p.add_argument("--port", "-p", default=9000)
     p.add_argument("--debug", "-d", action="store_true", default=False)
     args = p.parse_args()
-    app.run(host=args.host, port=args.port, debug=args.debug)
+
+    # debug mode will allow use of localhost in sessions
+    if args.debug:
+        app.config.update(DEBUG=True, SESSION_COOKIE_DOMAIN=None)
+
+    app.run(host=args.host, port=args.port)
