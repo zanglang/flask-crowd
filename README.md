@@ -13,30 +13,26 @@ Start the service with:
 Example Nginx configuration block:
 
     server {
-        listen 8080;
-        root /usr/share/nginx/html;
-
-        location / {
+        location /protected {
+            # root /var/www/protected;
+            # proxy_pass http://protected_server;
             auth_request /auth;
             error_page 401 = /auth/redirect;
-        }
-
-        location /auth/redirect {
-            internal;
-            proxy_set_header Host $http_host;
-            proxy_set_header x-callback $scheme://$http_host$request_uri;
-            proxy_pass http://server:9000;
         }
 
         location /auth {
             internal;
             proxy_pass_request_body off;
             proxy_set_header Content-Length "";
-            proxy_pass http://server:9000;
+            proxy_pass http://flask-crowd-server:9000;
+        }
+
+        location /auth/redirect {
+            return 301 /login?next=$scheme://$http_host$request_uri;
         }
 
         location /login {
-            proxy_pass http://server:9000;
+            proxy_pass http://flask-crowd-server:9000;
         }
     }
 
