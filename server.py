@@ -14,7 +14,10 @@ CROWD_USER = "abc"
 CROWD_PASS = "abc"
 CROWD_SERVER = crowd.CrowdServer(CROWD_URL, CROWD_USER, CROWD_PASS)
 app = Flask(__name__)
-app.secret_key = "your crowd secret"
+app.config.update(
+    SECRET_KEY="your crowd secret",
+    SESSION_COOKIE_DOMAIN="your root domain"
+)
 
 
 @app.route("/auth")
@@ -43,6 +46,9 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
         callback = request.form["next"]
+        if isinstance(callback, str) and len(callback.strip()) == 0:
+            callback = None
+
         crowd_session = CROWD_SERVER.get_session(username, password)
         if crowd_session:
             # logged in successfully, merge crowd JSON into session
@@ -71,7 +77,7 @@ def login():
             <input type="submit" value="Login"/>
         </form>
         """ % (session.pop("error", ""),  # display login errors
-               request.args.get("next"))  # where to redirect to
+               request.args.get("next", ""))  # where to redirect to
 
 
 @app.route("/logout")
