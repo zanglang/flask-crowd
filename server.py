@@ -24,8 +24,12 @@ app.config.update(
 def authenticate():
     # verify if crowd token is valid, otherwise redirect
     token = session.get("token")
+    user = session.get("crowd_user")
     if token and CROWD_SERVER.validate_session(token):
-        return ''  # = 200 OK
+        if user:
+            return ('', {"X-CROWD-USER": user})
+        else:
+            return ''  # = 200 OK
     else:
         raise Unauthorized  # = 401 unauthorized
 
@@ -54,6 +58,7 @@ def login():
         if crowd_session:
             # logged in successfully, merge crowd JSON into session
             session.update(crowd_session)
+            session["crowd_user"] = crowd_session["user"]["name"]
             app.logger.debug("User %s <%s> logged in.",
                              crowd_session["user"]["display-name"],
                              crowd_session["user"]["email"])
